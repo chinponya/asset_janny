@@ -50,12 +50,18 @@ export function compareVersion(v1: Version, v2: Version): 1 | 0 | -1 {
     const a = [v1.major, v1.minor, v1.patch]
     const b = [v2.major, v2.minor, v2.patch]
 
-    if (a > b) {
-        return 1
-    }
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] == b[i]) {
+            continue
+        }
 
-    if (a < b) {
-        return -1
+        if (a[i] > b[i]) {
+            return 1
+        }
+
+        if (a[i] < b[i]) {
+            return -1
+        }
     }
 
     return 0
