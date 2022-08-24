@@ -157,6 +157,8 @@ export async function run(options: Options): Promise<void> {
     }
 
     let resources = await fetchResversion(defaultGameServer, options.version)
+    const config_proto = await fetchConfigProto(resources)
+    const mappings_bin = await fetchMetadata(resources)
 
     if (options.from_version) {
         resources = resourcesNewerThan(resources, options.from_version)
@@ -164,8 +166,6 @@ export async function run(options: Options): Promise<void> {
 
     let jobs: Jobs
     if (options.remap) {
-        const config_proto = await fetchConfigProto(resources)
-        const mappings_bin = await fetchMetadata(resources)
         const metadata = decodeMetadata(config_proto, mappings_bin)
         if (options.dump_metadata) {
             const metadata_file_name = "metadata.json"
