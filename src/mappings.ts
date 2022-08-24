@@ -40,8 +40,11 @@ function buildVoiceMapping(metadata: MetadataEntry, character_id_mapping: Charac
     }
     let base_path = `voices/${character_name}/`
 
-    if (voice_type.startsWith("fan_") || voice_type.startsWith("scfan_")) {
+    if (voice_type.startsWith("fan_")) {
         base_path += "yaku - "
+    }
+    if (voice_type.startsWith("scfan_")) {
+        base_path += "sp yaku - "
     }
     if (voice_type.startsWith("act_")) {
         base_path += "action - "
