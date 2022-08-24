@@ -121,29 +121,35 @@ function parseCfHeader(header: string): Record<string, string> {
 }
 
 export async function remoteSize(url: URL): Promise<number> {
-    const response = await fetch(url, { method: "head", headers: headers })
-    if (!response.ok) {
+    try {
+        const response = await fetch(url, { method: "head", headers: headers })
+
+        if (!response.ok) {
+            return -1
+        }
+
+        const cf_header = response.headers.get("cf-polished")
+        if (cf_header) {
+            const parsed_cf_headers = parseCfHeader(cf_header)
+            const size = parseInt(parsed_cf_headers["origSize"] || "")
+            if (!isNaN(size)) {
+                return size
+            }
+        }
+
+        const content_length = response.headers.get("content-length")
+        if (content_length) {
+            const size = parseInt(content_length || "")
+            if (!isNaN(size)) {
+                return size
+            }
+        }
+        
+        return -1
+    } catch {
         return -1
     }
 
-    const cf_header = response.headers.get("cf-polished")
-    if (cf_header) {
-        const parsed_cf_headers = parseCfHeader(cf_header)
-        const size = parseInt(parsed_cf_headers["origSize"] || "")
-        if (!isNaN(size)) {
-            return size
-        }
-    }
-
-    const content_length = response.headers.get("content-length")
-    if (content_length) {
-        const size = parseInt(content_length || "")
-        if (!isNaN(size)) {
-            return size
-        }
-    }
-
-    return -1
 }
 
 export async function downloadFile(url: URL, path: string): Promise<boolean> {
