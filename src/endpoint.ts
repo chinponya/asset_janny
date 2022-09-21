@@ -1,6 +1,6 @@
 import { appendUrlPath } from "./util.ts"
 import { Version, parseVersion, versionToString } from "./version.ts"
-import { Resource, Resources, serverForLanguage, languageOfResourcePath, findConfigProtoResource, findMetadataResource, compareByLanguage } from "./resources.ts"
+import { Language, Resource, Resources, serverForLanguage, languageOfResourcePath, findConfigProtoResource, findMetadataResource, compareByLanguage } from "./resources.ts"
 import { isEncrypted, Decryptor } from "./xor.ts"
 import { Random, protobufjs, streams } from "./deps.ts"
 
@@ -98,6 +98,9 @@ export async function fetchResversion(server: GameServer, version: Version): Pro
 
 export async function fetchConfigProto(resources: Resources): Promise<protobufjs.Root> {
     const configProtoResource = findConfigProtoResource(resources)
+    // HACK this rewrites the URL to use the default server (EN),
+    // but this information should be taken from somewhere else
+    configProtoResource.language = Language.EN
     const url = resourceUrl(configProtoResource)
     const response = await fetch(url, { headers: headers })
     const text_body = await response.text()
@@ -108,6 +111,9 @@ export async function fetchConfigProto(resources: Resources): Promise<protobufjs
 export async function fetchMetadata(resources: Resources): Promise<Uint8Array> {
     console.log("fetching game metadata")
     const mappingsResource = findMetadataResource(resources)
+    // HACK this rewrites the URL to use the default server (EN),
+    // but this information should be taken from somewhere else
+    mappingsResource.language = Language.EN
     const url = resourceUrl(mappingsResource)
     const response = await fetch(url, { headers: headers })
     const response_blob = await response.arrayBuffer()
