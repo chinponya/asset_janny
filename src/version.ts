@@ -40,9 +40,8 @@ export function parseVersion(text: string): Version {
 
 export function versionToString(version: Version): string {
     const version_array = [version.major, version.minor, version.patch].map(e => e.toString())
-    if (version.stem) {
-        version_array.push(version.stem)
-    }
+    const version_stem = version.stem || "w"
+    version_array.push(version_stem)
     return version_array.join(".")
 }
 
