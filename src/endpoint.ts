@@ -2,7 +2,7 @@ import { appendUrlPath } from "./util.ts"
 import { Version, parseVersion, versionToString } from "./version.ts"
 import { Resource, Resources, serverForLanguage, languageOfResourcePath, findConfigProtoResource, findMetadataResource, compareByLanguage } from "./resources.ts"
 import { isEncrypted, Decryptor } from "./xor.ts"
-import { protobufjs, streams } from "./deps.ts"
+import { Random, protobufjs, streams } from "./deps.ts"
 
 const headers = new Headers({
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36"
@@ -39,10 +39,14 @@ export function gameServerUrl(game_server: GameServer): URL {
     }
 }
 export function versionUrl(server: GameServer): URL {
-    return appendUrlPath(
+    const new_url = appendUrlPath(
         gameServerUrl(server),
         "version.json"
     )
+    const random = new Random()
+    const random_value = random.string(16, Random.NUMBERS)
+    new_url.searchParams.set("randv", random_value)
+    return new_url
 }
 
 export function resversionUrl(server: GameServer, version: Version): URL {
