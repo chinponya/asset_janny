@@ -9,6 +9,37 @@ A massively overengineered and janky asset downloader for M\*hjong S\*\*l.
 - It "decrypts" assets (where applicable).
 - It filters assets older than a given version if desired, making updates less time consuming.
 
+### Cheat sheet
+- Download all assets
+```
+./asset_janny
+```
+
+- ...but skip ones older than game version 0.10.149
+```
+./asset_janny --min-version=0.10.149
+```
+
+- ...but in the original catfood file structure
+```
+./asset_janny --no-remap
+```
+
+- ...but put files for each region in a separate directory
+```
+./asset_janny --on-conflict=prefix_dir
+```
+
+- Just show me the URLs it would download and where
+```
+./asset_janny --dry-run
+```
+
+- Just save this weird magic catfood file with asset metadata 
+```
+./asset_janny --dry-run --dump-metadata
+```
+
 ### Usage instructions
 When using a binary release, run `./asset_janny --help` to get a list of options, much like this one:
 
