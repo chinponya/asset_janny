@@ -71,5 +71,5 @@ Use `deno task run` to run the program. `deno task dist` to build a linux  execu
 ### Known issues
 - Windows build is completely untested. I'd be surprised if it actually works fine.
 - Some assets don't seem to exist on any of the servers, so they will throw errors at runtime. That's expected. Please let me know if you aware of some fix for this. It's possible that I just overlooked some edge case.
-- When the process gets interrupted by the user with ctrl+c or the program crashes, your terminal cursor will likely be gone in that session. Will fix this soon™️.
 - The name remapping aspect of the program is strongly tied to the structure of game's metadata format. There's a good chance that an update will break it and the code will need to be updated. Just in case, there's an escape hatch for this exact issue: the `--no-remap` flag.
+- It naively determines which assets should be decrypted, by checking that the path contains `extendRes`. Sometimes it mangles unencrypted files instead.
