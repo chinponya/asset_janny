@@ -8,8 +8,8 @@ import { resourcesNewerThan } from "./resources.ts"
 
 export type Options = {
     output: string
-    version: Version | undefined
-    from_version: Version | undefined
+    exact_version: Version | undefined
+    min_version: Version | undefined
     jobs: number
     conflict_policy: ConflictPolicy
     help: boolean
@@ -22,21 +22,21 @@ export type Options = {
 
 const help_text = `
 ./asset_janny
-    -o [path] | --output=[path]
-        directory to which files will be downloaded [default: .]
+    --output=[path]
+        directory to which files will be downloaded [default: ./assets]
 
-    -v [version] | --version=[version]
+    --exact-version=[version]
         download assets for a specific version instead of the latest one [default: none]
         has to conform to the [major].[minor].[patch] format
 
-    -f [version] | --fromversion=[version]
+    --min-version=[version]
         download assets more recent than this version [default: none]
         has to conform to the [major].[minor].[patch] format
 
-    -j [n] | --jobs=[n]
+    --jobs=[n]
         number of concurrent download jobs [default: 1]
 
-    --onconflict=prefix_file|suffix_file|prefix_dir|skip
+    --on-conflict=prefix_file|suffix_file|prefix_dir|skip
         how conflicting names of files from different regions should be handled [default: suffix_file]
           suffix_file adds [region] to the end of a file name
           prefix_file adds [region] to the beginning of a file name
@@ -49,7 +49,7 @@ const help_text = `
     --progress | --no-progress
         display the progress bar [default: true]
 
-    --dryrun
+    --dry-run
         do not execute download jobs [default: false]
         implies --no-progress
 
@@ -59,11 +59,11 @@ const help_text = `
         disabling this can be useful as an excape hatch for when the metadata format
         significantly changes, breaking the program
 
-    --dumpmetadata | --no-dumpmetadata
+    --dump-metadata | --no-dump-metadata
         write the decoded game metadata file as json [default: false]
         does nothing with --no-remap
 
-    --dumpmappings | --no-dumpmappings
+    --dump-mappings | --no-dump-mappings
         write URLs and paths they would be saved to [default: false]
         does nothing with --no-remap
 
@@ -72,44 +72,26 @@ const help_text = `
 `
 
 export function parse(args: string[]) {
-    const {
-        output,
-        version,
-        fromversion,
-        jobs,
-        onconflict,
-        help,
-        progress,
-        dryrun,
-        remap,
-        dumpmetadata,
-        dumpmappings
-    } = flags.parse(
+    const raw_flags = flags.parse(
         args,
         {
-            alias: {
-                "v": "version",
-                "f": "fromversion",
-                "j": "jobs",
-                "o": "output",
-            },
             default: {
-                output: ".",
+                output: "./assets",
                 jobs: 1,
                 progress: true,
-                dry_run: false,
+                "dry-run": false,
                 remap: true,
-                dump_mappings: false,
-                dump_metadata: false
+                "dump-mappings": true,
+                "dump-metadata": false
             },
-            string: ["version", "fromversion", "output", "onconflict"],
-            boolean: ["help", "progress", "dryrun", "dumpmappings", "dumpmetadata", "remap"],
-            negatable: ["progress", "dumpmappings", "dumpmetadata", "remap"]
+            string: ["exact-version", "min-version", "output", "on-conflict"],
+            boolean: ["help", "progress", "dry-run", "dump-mappings", "dump-metadata", "remap"],
+            negatable: ["progress", "dump-mappings", "dump-metadata", "remap"]
         }
     )
 
     let conflict_policy: ConflictPolicy
-    switch (onconflict) {
+    switch (raw_flags["on-conflict"]) {
         case "prefix_file":
             conflict_policy = ConflictPolicy.FilePrefix
             break
@@ -127,17 +109,17 @@ export function parse(args: string[]) {
     }
 
     const options: Options = {
-        output,
-        help,
-        remap,
-        progress,
-        conflict_policy,
-        dry_run: dryrun,
-        dump_metadata: dumpmetadata,
-        dump_mappings: dumpmappings,
-        jobs: typeof (jobs) == "number" ? jobs : 1,
-        version: version ? parseVersion(version) : undefined,
-        from_version: fromversion ? parseVersion(fromversion) : undefined
+        output: raw_flags.output,
+        help: raw_flags.help,
+        remap: raw_flags.remap,
+        progress: raw_flags.progress,
+        conflict_policy: conflict_policy,
+        dry_run: raw_flags["dry-run"],
+        dump_metadata: raw_flags["dump-metadata"],
+        dump_mappings: raw_flags["dump-mappings"],
+        jobs: typeof (raw_flags.jobs) == "number" ? raw_flags.jobs : 1,
+        exact_version: raw_flags["exact-version"] ? parseVersion(raw_flags["exact-version"]) : undefined,
+        min_version: raw_flags["min-version"] ? parseVersion(raw_flags["min-version"]) : undefined
     }
 
     return options
@@ -151,17 +133,17 @@ export async function run(options: Options): Promise<void> {
 
     console.log(`running with options: ${JSON.stringify(options)}`)
 
-    if (!options.version) {
+    if (!options.exact_version) {
         const game_version = await fetchVersion(defaultGameServer)
-        options.version = game_version.version
+        options.exact_version = game_version.version
     }
 
-    let resources = await fetchResversion(defaultGameServer, options.version)
+    let resources = await fetchResversion(defaultGameServer, options.exact_version)
     const config_proto = await fetchConfigProto(resources)
     const mappings_bin = await fetchMetadata(resources)
 
-    if (options.from_version) {
-        resources = resourcesNewerThan(resources, options.from_version)
+    if (options.min_version) {
+        resources = resourcesNewerThan(resources, options.min_version)
     }
 
     let jobs: Jobs

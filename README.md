@@ -14,21 +14,21 @@ When using a binary release, run `./asset_janny --help` to get a list of options
 
 ```
 ./asset_janny
-    -o [path] | --output=[path]
-        directory to which files will be downloaded [default: .]
+    --output=[path]
+        directory to which files will be downloaded [default: ./assets]
 
-    -v [version] | --version=[version]
+    --exact-version=[version]
         download assets for a specific version instead of the latest one [default: none]
         has to conform to the [major].[minor].[patch] format
 
-    -f [version] | --fromversion=[version]
+    --min-version=[version]
         download assets more recent than this version [default: none]
         has to conform to the [major].[minor].[patch] format
 
-    -j [n] | --jobs=[n]
+    --jobs=[n]
         number of concurrent download jobs [default: 1]
 
-    --onconflict=prefix_file|suffix_file|prefix_dir|skip
+    --on-conflict=prefix_file|suffix_file|prefix_dir|skip
         how conflicting names of files from different regions should be handled [default: suffix_file]
           suffix_file adds [region] to the end of a file name
           prefix_file adds [region] to the beginning of a file name
@@ -41,7 +41,7 @@ When using a binary release, run `./asset_janny --help` to get a list of options
     --progress | --no-progress
         display the progress bar [default: true]
 
-    --dryrun
+    --dry-run
         do not execute download jobs [default: false]
         implies --no-progress
 
@@ -51,11 +51,11 @@ When using a binary release, run `./asset_janny --help` to get a list of options
         disabling this can be useful as an excape hatch for when the metadata format
         significantly changes, breaking the program
 
-    --dumpmetadata | --no-dumpmetadata
+    --dump-metadata | --no-dump-metadata
         write the decoded game metadata file as json [default: false]
         does nothing with --no-remap
 
-    --dumpmappings | --no-dumpmappings
+    --dump-mappings | --no-dump-mappings
         write URLs and paths they would be saved to [default: false]
         does nothing with --no-remap
 
