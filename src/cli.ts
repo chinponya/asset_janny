@@ -81,7 +81,7 @@ export function parse(args: string[]) {
                 progress: true,
                 "dry-run": false,
                 remap: true,
-                "dump-mappings": true,
+                "dump-mappings": false,
                 "dump-metadata": false
             },
             string: ["exact-version", "min-version", "output", "on-conflict"],
