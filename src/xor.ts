@@ -1,8 +1,10 @@
 const XOR_KEY = 73
-const ENCRYPTED_ASSETS_KEYWORD = "extendRes"
+const ENCRYPTED_ASSETS_POSTIIVE_PATTERN = new RegExp("\/extendRes\/");
+const ENCRYPTED_ASSETS_NEGATIVE_PATTERN = new RegExp("\/spine\/");
 
 export function isEncrypted(url: URL): boolean {
-    return url.pathname.includes(ENCRYPTED_ASSETS_KEYWORD)
+    return ENCRYPTED_ASSETS_POSTIIVE_PATTERN.test(url.pathname)
+        && !ENCRYPTED_ASSETS_NEGATIVE_PATTERN.test(url.pathname)
 }
 
 export function decryptByte(buffer: Uint8Array): Uint8Array {

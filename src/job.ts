@@ -3,6 +3,7 @@ import { resourceUrl, remoteSize, downloadFile } from "./endpoint.ts"
 import { Mappings, mapPath } from "./mappings.ts"
 import { Resource, Resources } from "./resources.ts"
 import { path, pool, progress } from "./deps.ts"
+import { isEncrypted } from "./xor.ts"
 
 export enum ConflictPolicy {
     FilePrefix,
@@ -185,7 +186,7 @@ export async function processJobs(jobs: Jobs, options: Options): Promise<JobResu
         }
 
         if (options.dry_run) {
-            logFn(`'${job_result.url}' '${job_result.path}'`)
+            logFn(`'${job_result.url}' '${job_result.path}' encrypted=${isEncrypted(job_result.url)}`)
         } else if (!job_result.success) {
             logFn(`failed '${job_result.url}' '${job_result.path}'`)
         }
