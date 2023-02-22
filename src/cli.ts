@@ -72,23 +72,26 @@ const help_text = `
 `
 
 export function parse(args: string[]) {
-    const raw_flags = flags.parse(
-        args,
-        {
-            default: {
-                output: "./assets",
-                jobs: 1,
-                progress: true,
-                "dry-run": false,
-                remap: true,
-                "dump-mappings": false,
-                "dump-metadata": false
-            },
-            string: ["max-version", "min-version", "output", "on-conflict"],
-            boolean: ["help", "progress", "dry-run", "dump-mappings", "dump-metadata", "remap"],
-            negatable: ["progress", "dump-mappings", "dump-metadata", "remap"]
+    const parse_options: flags.ParseOptions = {
+        default: {
+            output: "./assets",
+            jobs: 1,
+            progress: true,
+            "dry-run": false,
+            remap: true,
+            "dump-mappings": false,
+            "dump-metadata": false
+        },
+        string: ["max-version", "min-version", "output", "on-conflict", "jobs"],
+        boolean: ["help", "progress", "dry-run", "dump-mappings", "dump-metadata", "remap"],
+        negatable: ["progress", "dump-mappings", "dump-metadata", "remap"],
+        unknown: (arg, _key, value) => {
+            console.error(`Error: unknown flag: ${arg}=${value}`)
+            Deno.exit(1)
         }
-    )
+    }
+
+    const raw_flags = flags.parse(args, parse_options)
 
     let conflict_policy: ConflictPolicy
     switch (raw_flags["on-conflict"]) {
