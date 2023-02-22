@@ -48,12 +48,12 @@ When using a binary release, run `./asset_janny --help` to get a list of options
     --output=[path]
         directory to which files will be downloaded [default: ./assets]
 
-    --exact-version=[version]
-        download assets for a specific version instead of the latest one [default: none]
+    --max-version=[version]
+        download assets for a specific version (inclusive), instead of the latest one [default: none]
         has to conform to the [major].[minor].[patch] format
 
     --min-version=[version]
-        download assets more recent than this version [default: none]
+        download assets more recent than this version (exclusive) [default: none]
         has to conform to the [major].[minor].[patch] format
 
     --jobs=[n]

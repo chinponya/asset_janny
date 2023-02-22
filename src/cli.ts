@@ -8,7 +8,7 @@ import { resourcesNewerThan } from "./resources.ts"
 
 export type Options = {
     output: string
-    exact_version: Version | undefined
+    max_version: Version | undefined
     min_version: Version | undefined
     jobs: number
     conflict_policy: ConflictPolicy
@@ -25,12 +25,12 @@ const help_text = `
     --output=[path]
         directory to which files will be downloaded [default: ./assets]
 
-    --exact-version=[version]
-        download assets for a specific version instead of the latest one [default: none]
+    --max-version=[version]
+        download assets for a specific version (inclusive), instead of the latest one [default: none]
         has to conform to the [major].[minor].[patch] format
 
     --min-version=[version]
-        download assets more recent than this version [default: none]
+        download assets more recent than this version (exclusive) [default: none]
         has to conform to the [major].[minor].[patch] format
 
     --jobs=[n]
@@ -84,7 +84,7 @@ export function parse(args: string[]) {
                 "dump-mappings": false,
                 "dump-metadata": false
             },
-            string: ["exact-version", "min-version", "output", "on-conflict"],
+            string: ["max-version", "min-version", "output", "on-conflict"],
             boolean: ["help", "progress", "dry-run", "dump-mappings", "dump-metadata", "remap"],
             negatable: ["progress", "dump-mappings", "dump-metadata", "remap"]
         }
@@ -118,7 +118,7 @@ export function parse(args: string[]) {
         dump_metadata: raw_flags["dump-metadata"],
         dump_mappings: raw_flags["dump-mappings"],
         jobs: typeof (raw_flags.jobs) == "number" ? raw_flags.jobs : 1,
-        exact_version: raw_flags["exact-version"] ? parseVersion(raw_flags["exact-version"]) : undefined,
+        max_version: raw_flags["max-version"] ? parseVersion(raw_flags["max-version"]) : undefined,
         min_version: raw_flags["min-version"] ? parseVersion(raw_flags["min-version"]) : undefined
     }
 
@@ -133,12 +133,12 @@ export async function run(options: Options): Promise<void> {
 
     console.log(`running with options: ${JSON.stringify(options)}`)
 
-    if (!options.exact_version) {
+    if (!options.max_version) {
         const game_version = await fetchVersion(defaultGameServer)
-        options.exact_version = game_version.version
+        options.max_version = game_version.version
     }
 
-    let resources = await fetchResversion(defaultGameServer, options.exact_version)
+    let resources = await fetchResversion(defaultGameServer, options.max_version)
     const config_proto = await fetchConfigProto(resources)
     const mappings_bin = await fetchMetadata(resources)
 
