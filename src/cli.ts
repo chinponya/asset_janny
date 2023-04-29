@@ -93,6 +93,13 @@ export function parse(args: string[]) {
 
     const raw_flags = flags.parse(args, parse_options)
 
+    let jobs: number
+    if (typeof raw_flags.jobs == "number") {
+        jobs = raw_flags.jobs
+    } else {
+        jobs = parseInt(raw_flags.jobs)
+    }
+
     let conflict_policy: ConflictPolicy
     switch (raw_flags["on-conflict"]) {
         case "prefix_file":
@@ -120,7 +127,7 @@ export function parse(args: string[]) {
         dry_run: raw_flags["dry-run"],
         dump_metadata: raw_flags["dump-metadata"],
         dump_mappings: raw_flags["dump-mappings"],
-        jobs: typeof (raw_flags.jobs) == "number" ? raw_flags.jobs : 1,
+        jobs: jobs,
         max_version: raw_flags["max-version"] ? parseVersion(raw_flags["max-version"]) : undefined,
         min_version: raw_flags["min-version"] ? parseVersion(raw_flags["min-version"]) : undefined
     }
