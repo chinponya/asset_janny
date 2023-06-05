@@ -20,18 +20,18 @@ export type Resource = {
 export type Resources = Array<Resource>
 
 export function languageOfResourcePath(path: string): Language {
-    const lang = path.split("/")[0]
-    switch (lang) {
-        case "en":
-            return Language.EN
-        case "kr":
-            return Language.KR
-        case "jp":
-            return Language.JP
-        case "chs_t":
-            return Language.CHS_T
-        default:
-            return Language.CHS
+    if (/^en\/|\/en\//.test(path)) {
+        return Language.EN
+    } else if (/^en_kr\/|\/en_kr\//.test(path)) {
+        return Language.KR
+    } else if (/^kr\/|\/kr\//.test(path)) {
+        return Language.KR
+    } else if (/^jp\/|\/jp\//.test(path)) {
+        return Language.JP
+    } else if (/^chs_t\/|\/chs_t\//.test(path)) {
+        return Language.CHS_T
+    } else {
+        return Language.CHS
     }
 }
 
