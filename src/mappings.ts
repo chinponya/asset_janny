@@ -31,8 +31,9 @@ function buildVoiceMapping(metadata: MetadataEntry, character_id_mapping: Charac
     const original_name = original_path.split("/").pop()
     const english_name = metadata["name_en"].toLowerCase()
     const character_id = 200000 + metadata["id"]
-    const character_name = character_id_mapping[character_id]
-    if (character_id == undefined) {
+    const character_id2 = 20000000 + metadata["id"]
+    const character_name = character_id_mapping[character_id] || character_id_mapping[character_id2]
+    if (character_name == undefined) {
         // this should only happen when they change their format significantly
         // so the code would need to get updated anyway
         console.error(metadata)
