@@ -1,4 +1,4 @@
-import * as cli from "./cli.ts"
+import * as cli from "./cli.ts";
 
-const options = cli.parse(Deno.args)
-await cli.run(options)
+const options = cli.parse(Deno.args);
+await cli.run(options);

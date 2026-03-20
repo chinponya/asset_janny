@@ -1,24 +1,32 @@
-import { defaultGameServer, fetchVersion, fetchResversion, fetchConfigProto, fetchMetadata } from "./endpoint.ts"
-import { decodeMetadata } from "./metadata.ts"
-import { buildMappings } from "./mappings.ts"
-import { Jobs, ConflictPolicy, buildJobs, processJobs } from "./job.ts"
-import { flags } from "./deps.ts"
-import { Version, parseVersion } from "./version.ts"
-import { resourcesNewerThan } from "./resources.ts"
+import {
+  defaultGameServer,
+  fetchConfigProto,
+  fetchMetadata,
+  fetchResversion,
+  fetchVersion,
+} from "./endpoint.ts";
+import { decodeMetadata } from "./metadata.ts";
+import { buildMappings } from "./mappings.ts";
+import { buildJobs, ConflictPolicy, Jobs, processJobs } from "./job.ts";
+import { flags } from "./deps.ts";
+import { parseVersion, Version } from "./version.ts";
+import { resourcesNewerThan } from "./resources.ts";
 
 export type Options = {
-    output: string
-    max_version: Version | undefined
-    min_version: Version | undefined
-    jobs: number
-    conflict_policy: ConflictPolicy
-    help: boolean
-    progress: boolean
-    dry_run: boolean
-    remap: boolean
-    dump_mappings: boolean
-    dump_metadata: boolean
-}
+  output: string;
+  max_version: Version | undefined;
+  min_version: Version | undefined;
+  jobs: number;
+  conflict_policy: ConflictPolicy;
+  help: boolean;
+  progress: boolean;
+  dry_run: boolean;
+  remap: boolean;
+  dump_mappings: boolean;
+  dump_metadata: boolean;
+  include_low_quality: boolean;
+  include_old_cn_resources: boolean;
+};
 
 const help_text = `
 ./asset_janny
@@ -56,8 +64,8 @@ const help_text = `
     --remap | --no-remap
         translate remote file paths according to game's metadata [default: true]
         when false, paths will be written using the same paths as they are served under
-        disabling this can be useful as an excape hatch for when the metadata format
-        significantly changes, breaking the program
+        (minus the version prefix) disabling this can be useful as an escape hatch for
+        when the metadata format significantly changes, breaking the program
 
     --dump-metadata | --no-dump-metadata
         write the decoded game metadata file as json [default: false]
@@ -67,113 +75,148 @@ const help_text = `
         write URLs and paths they would be saved to [default: false]
         does nothing with --no-remap
 
+    --include-low-quality | --no-include-low-quality
+        downloads lower quality files when multiple quality variants exist [default: false]
+
+    --include-old-cn-resources | --no-include-old-cn-resources
+        downloads CN server resources from before the quality variants were introduced [default: false]
+        note: all these resources exist in the new 'lang' directories too
+
     --help
         show this information and exit
-`
+`;
 
 export function parse(args: string[]) {
-    const parse_options: flags.ParseOptions = {
-        default: {
-            output: "./assets",
-            jobs: 1,
-            progress: true,
-            "dry-run": false,
-            remap: true,
-            "dump-mappings": false,
-            "dump-metadata": false
-        },
-        string: ["max-version", "min-version", "output", "on-conflict", "jobs"],
-        boolean: ["help", "progress", "dry-run", "dump-mappings", "dump-metadata", "remap"],
-        negatable: ["progress", "dump-mappings", "dump-metadata", "remap"],
-        unknown: (arg, _key, value) => {
-            console.error(`Error: unknown flag: ${arg}=${value}`)
-            Deno.exit(1)
-        }
-    }
+  const parse_options: flags.ParseOptions = {
+    default: {
+      output: "./assets",
+      jobs: 1,
+      progress: true,
+      "dry-run": false,
+      remap: true,
+      "dump-mappings": false,
+      "dump-metadata": false,
+      "include-low-quality": false,
+      "include-old-cn-resources": false,
+    },
+    string: ["max-version", "min-version", "output", "on-conflict", "jobs"],
+    boolean: [
+      "help",
+      "progress",
+      "dry-run",
+      "dump-mappings",
+      "dump-metadata",
+      "remap",
+      "include-low-quality",
+      "include-old-cn-resources",
+    ],
+    negatable: ["progress", "dump-mappings", "dump-metadata", "remap"],
+    unknown: (arg, _key, value) => {
+      console.error(`Error: unknown flag: ${arg}=${value}`);
+      Deno.exit(1);
+    },
+  };
 
-    const raw_flags = flags.parse(args, parse_options)
+  const raw_flags = flags.parse(args, parse_options);
 
-    let jobs: number
-    if (typeof raw_flags.jobs == "number") {
-        jobs = raw_flags.jobs
-    } else {
-        jobs = parseInt(raw_flags.jobs)
-    }
+  let jobs: number;
+  if (typeof raw_flags.jobs == "number") {
+    jobs = raw_flags.jobs;
+  } else {
+    jobs = parseInt(raw_flags.jobs);
+  }
 
-    let conflict_policy: ConflictPolicy
-    switch (raw_flags["on-conflict"]) {
-        case "prefix_file":
-            conflict_policy = ConflictPolicy.FilePrefix
-            break
-        case "suffix_file":
-            conflict_policy = ConflictPolicy.FileSuffix
-            break
-        case "prefix_dir":
-            conflict_policy = ConflictPolicy.DirectoryPrefix
-            break
-        case "skip":
-            conflict_policy = ConflictPolicy.Skip
-            break
-        default:
-            conflict_policy = ConflictPolicy.FileSuffix
-    }
+  let conflict_policy: ConflictPolicy;
+  switch (raw_flags["on-conflict"]) {
+    case "prefix_file":
+      conflict_policy = ConflictPolicy.FilePrefix;
+      break;
+    case "suffix_file":
+      conflict_policy = ConflictPolicy.FileSuffix;
+      break;
+    case "prefix_dir":
+      conflict_policy = ConflictPolicy.DirectoryPrefix;
+      break;
+    case "skip":
+      conflict_policy = ConflictPolicy.Skip;
+      break;
+    default:
+      conflict_policy = ConflictPolicy.FileSuffix;
+  }
 
-    const options: Options = {
-        output: raw_flags.output,
-        help: raw_flags.help,
-        remap: raw_flags.remap,
-        progress: raw_flags.progress,
-        conflict_policy: conflict_policy,
-        dry_run: raw_flags["dry-run"],
-        dump_metadata: raw_flags["dump-metadata"],
-        dump_mappings: raw_flags["dump-mappings"],
-        jobs: jobs,
-        max_version: raw_flags["max-version"] ? parseVersion(raw_flags["max-version"]) : undefined,
-        min_version: raw_flags["min-version"] ? parseVersion(raw_flags["min-version"]) : undefined
-    }
+  const options: Options = {
+    output: raw_flags.output,
+    help: raw_flags.help,
+    remap: raw_flags.remap,
+    progress: raw_flags.progress,
+    conflict_policy: conflict_policy,
+    dry_run: raw_flags["dry-run"],
+    dump_metadata: raw_flags["dump-metadata"],
+    dump_mappings: raw_flags["dump-mappings"],
+    jobs: jobs,
+    max_version: raw_flags["max-version"]
+      ? parseVersion(raw_flags["max-version"])
+      : undefined,
+    min_version: raw_flags["min-version"]
+      ? parseVersion(raw_flags["min-version"])
+      : undefined,
+    include_low_quality: raw_flags["include-low-quality"],
+    include_old_cn_resources: raw_flags["include-old-cn-resources"],
+  };
 
-    return options
+  return options;
 }
 
 export async function run(options: Options): Promise<void> {
-    if (options.help) {
-        console.log(help_text)
-        return
+  if (options.help) {
+    console.log(help_text);
+    return;
+  }
+
+  console.log(`running with options: ${JSON.stringify(options)}`);
+
+  if (!options.max_version) {
+    const game_version = await fetchVersion(defaultGameServer);
+    options.max_version = game_version.version;
+  }
+
+  let resources = await fetchResversion(
+    defaultGameServer,
+    options.max_version,
+    options.include_low_quality,
+    options.include_old_cn_resources,
+  );
+  const config_proto = await fetchConfigProto(resources);
+  const mappings_bin = await fetchMetadata(resources);
+
+  if (options.min_version) {
+    resources = resourcesNewerThan(resources, options.min_version);
+  }
+
+  let jobs: Jobs;
+  if (options.remap) {
+    const metadata = decodeMetadata(config_proto, mappings_bin);
+    if (options.dump_metadata) {
+      const metadata_file_name = "metadata.json";
+      console.log(`dumping metadata to ${metadata_file_name}`);
+      Deno.writeTextFileSync(
+        metadata_file_name,
+        JSON.stringify(metadata, null, 2),
+      );
     }
-
-    console.log(`running with options: ${JSON.stringify(options)}`)
-
-    if (!options.max_version) {
-        const game_version = await fetchVersion(defaultGameServer)
-        options.max_version = game_version.version
+    const mappings = buildMappings(metadata);
+    if (options.dump_mappings) {
+      const mappings_file_name = "mappings.json";
+      console.log(`dumping mappings to ${mappings_file_name}`);
+      Deno.writeTextFileSync(
+        "mappings.json",
+        JSON.stringify(mappings, null, 2),
+      );
     }
+    jobs = buildJobs(resources, options, mappings);
+  } else {
+    jobs = buildJobs(resources, options);
+  }
 
-    let resources = await fetchResversion(defaultGameServer, options.max_version)
-    const config_proto = await fetchConfigProto(resources)
-    const mappings_bin = await fetchMetadata(resources)
-
-    if (options.min_version) {
-        resources = resourcesNewerThan(resources, options.min_version)
-    }
-
-    let jobs: Jobs
-    if (options.remap) {
-        const metadata = decodeMetadata(config_proto, mappings_bin)
-        if (options.dump_metadata) {
-            const metadata_file_name = "metadata.json"
-            console.log(`dumping metadata to ${metadata_file_name}`)
-            Deno.writeTextFileSync(metadata_file_name, JSON.stringify(metadata, null, 2))
-        }
-        const mappings = buildMappings(metadata)
-        if (options.dump_mappings) {
-            const mappings_file_name = "mappings.json"
-            console.log(`dumping mappings to ${mappings_file_name}`)
-            Deno.writeTextFileSync("mappings.json", JSON.stringify(mappings, null, 2))
-        }
-        jobs = buildJobs(resources, options, mappings)
-    } else {
-        jobs = buildJobs(resources, options)
-    }
-
-    await processJobs(jobs, options)
+  await processJobs(jobs, options);
 }
