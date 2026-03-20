@@ -94,8 +94,8 @@ options, much like this one:
     --remap | --no-remap
         translate remote file paths according to game's metadata [default: true]
         when false, paths will be written using the same paths as they are served under
-        disabling this can be useful as an excape hatch for when the metadata format
-        significantly changes, breaking the program
+        (minus the version prefix) disabling this can be useful as an escape hatch for
+        when the metadata format significantly changes, breaking the program
 
     --dump-metadata | --no-dump-metadata
         write the decoded game metadata file as json [default: false]
@@ -104,6 +104,13 @@ options, much like this one:
     --dump-mappings | --no-dump-mappings
         write URLs and paths they would be saved to [default: false]
         does nothing with --no-remap
+
+    --include-low-quality | --no-include-low-quality
+        downloads lower quality files when multiple quality variants exist [default: false]
+
+    --include-old-cn-resources | --no-include-old-cn-resources
+        downloads CN server resources from before the quality variants were introduced [default: false]
+        note: all these resources exist in the new 'lang' directories too
 
     --help
         show this information and exit
