@@ -4,7 +4,12 @@ import { path } from "./deps.ts";
 
 export type Mapping = [string, string];
 export type Mappings = Record<string, string>;
-type CharacterIdMappings = Record<string, string>;
+type CharacterDetails = {
+  id: number;
+  internalName: string;
+  name: string;
+};
+type CharacterIdMappings = Record<string, CharacterDetails>;
 
 function stripIllegalCharacters(text: string): string {
   return text.replaceAll("/", " ").replace(/[/\\?%*:|"<>]/g, "");
@@ -22,9 +27,16 @@ function metadataHasForeignName(metadata: MetadataEntry): boolean {
 
 function buildCharacterIdMappings(metadata: Metadata): CharacterIdMappings {
   // why the fuck does JS implicitly convert keys to strings on objects?
-  const mappings: Record<string, string> = { 0: "Freed Jyanshi" };
+  const mappings: Record<string, CharacterDetails> = {
+    0: { id: 0, name: "Freed Jyanshi", internalName: "default" },
+  };
   for (const character of metadata["item_definition_character"]) {
-    mappings[character["id"]] = character["name_en"];
+    const details: CharacterDetails = {
+      id: character["id"],
+      name: character["name_en"],
+      internalName: character["sound_folder"],
+    };
+    mappings[character["id"]] = details;
   }
   return mappings;
 }
@@ -33,21 +45,26 @@ function buildVoiceMapping(
   metadata: MetadataEntry,
   character_id_mapping: CharacterIdMappings,
 ): Mapping {
+  const sound_directory = "audio/sound";
   const voice_type: string = metadata["type"];
   const original_path: string = metadata["path"];
   const original_name = original_path.split("/").pop();
   const english_name = metadata["name_en"].toLowerCase();
   const character_id = 200000 + metadata["id"];
   const character_id2 = 20000000 + metadata["id"];
-  const character_name = character_id_mapping[character_id] ||
+  const character_details = character_id_mapping[character_id] ||
     character_id_mapping[character_id2];
-  if (character_name == undefined) {
+  const full_original_path =
+    `${sound_directory}/${character_details.internalName}/${original_path}`;
+
+  if (character_details == undefined) {
     // this should only happen when they change their format significantly
     // so the code would need to get updated anyway
     console.error(metadata);
     throw `missing character name for ID ${character_id}`;
   }
-  let base_path = `voices/${character_name}/`;
+
+  let base_path = `voices/${character_details.name}/`;
 
   if (voice_type.startsWith("fan_")) {
     base_path += "yaku - ";
@@ -68,7 +85,7 @@ function buildVoiceMapping(
     base_path += original_name;
   }
 
-  return [original_path, base_path];
+  return [full_original_path, base_path];
 }
 
 function buildVoiceMappings(
@@ -183,7 +200,7 @@ function buildSkinMappings(
     const skin_name = stripIllegalCharacters(entry["name_en"]);
     const character_id = entry["character_id"];
     const character_name = stripIllegalCharacters(
-      character_id_mappings[character_id],
+      character_id_mappings[character_id].name,
     );
     let new_path: string;
     if (character_id == 0) {
