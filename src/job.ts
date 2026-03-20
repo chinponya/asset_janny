@@ -3,6 +3,7 @@ import {
   downloadFile,
   GameServer,
   remoteSize,
+  resourcePathWithVersion,
   resourceUrl,
 } from "./endpoint.ts";
 import { mapPath, Mappings } from "./mappings.ts";
@@ -17,10 +18,17 @@ export enum ConflictPolicy {
   Skip,
 }
 
+export enum RemapPolicy {
+  None,
+  Version,
+  Metadata,
+}
+
 export type Job = {
   resource: Resource;
   output_directory: string;
   output_path: string;
+  decrypt: boolean;
   conflict_policy: ConflictPolicy;
 };
 
@@ -38,24 +46,34 @@ export type JobResults = Array<JobResult>;
 export function buildJob(
   resource: Resource,
   options: Options,
-  mappings?: Mappings,
+  mappings: Mappings,
 ): Job {
-  const output_path = options.remap && mappings
-    ? mapPath(resource, mappings)
-    : resource.path;
+  let output_path: string;
+  switch (options.remap_policy) {
+    case RemapPolicy.None:
+      output_path = resourcePathWithVersion(resource);
+      break;
+    case RemapPolicy.Version:
+      output_path = resource.path;
+      break;
+    case RemapPolicy.Metadata:
+      output_path = mapPath(resource, mappings);
+      break;
+  }
 
   return {
     resource: resource,
     output_directory: options.output,
     output_path: output_path,
     conflict_policy: options.conflict_policy,
+    decrypt: options.decrypt,
   };
 }
 
 export function buildJobs(
   resources: Resources,
   options: Options,
-  mappings?: Mappings,
+  mappings: Mappings,
 ): Jobs {
   console.log(`building jobs for ${resources.length} resources`);
   return resources
@@ -170,7 +188,7 @@ export async function processJob(job: Job): Promise<JobResult> {
   await ensureDirectoryExists(native_path);
 
   try {
-    const success = await downloadFile(resource_url, native_path);
+    const success = await downloadFile(resource_url, native_path, job.decrypt);
     return { ...result, success: success };
   } catch {
     return { ...result, success: false };

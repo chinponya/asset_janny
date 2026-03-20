@@ -72,15 +72,20 @@ export function resversionUrl(server: GameServer, version: Version): URL {
   );
 }
 
-export function resourceUrl(resource: Resource): URL {
-  let path: string;
-  if (EXISTS_AT_ROOT.test(resource.path)) {
-    path = resource.path;
-  } else {
-    path = `v${versionToString(resource.version)}/${resource.path}`;
-  }
+export function resourcePathWithVersion(resource: Resource): string {
+  return `v${versionToString(resource.version)}/${resource.path}`;
+}
 
-  return appendUrlPath(gameServerUrl(resource.server), path);
+export function resourcePath(resource: Resource): string {
+  if (EXISTS_AT_ROOT.test(resource.path)) {
+    return resource.path;
+  } else {
+    return resourcePathWithVersion(resource);
+  }
+}
+
+export function resourceUrl(resource: Resource): URL {
+  return appendUrlPath(gameServerUrl(resource.server), resourcePath(resource));
 }
 
 export async function fetchVersion(
@@ -192,12 +197,16 @@ export async function remoteSize(url: URL): Promise<number> {
   }
 }
 
-export async function downloadFile(url: URL, path: string): Promise<boolean> {
+export async function downloadFile(
+  url: URL,
+  path: string,
+  decrypt: boolean,
+): Promise<boolean> {
   const response = await fetch(url);
   if (response.ok && response.body) {
     const file = await Deno.open(path, { write: true, create: true });
     const writable_stream = streams.writableStreamFromWriter(file);
-    if (isEncrypted(url)) {
+    if (decrypt && isEncrypted(url)) {
       await response.body.pipeThrough(Decryptor()).pipeTo(writable_stream);
     } else {
       await response.body.pipeTo(writable_stream);

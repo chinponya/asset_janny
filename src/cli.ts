@@ -7,8 +7,8 @@ import {
 } from "./endpoint.ts";
 import { decodeMetadata } from "./metadata.ts";
 import { buildMappings } from "./mappings.ts";
-import { buildJobs, ConflictPolicy, Jobs, processJobs } from "./job.ts";
-import { flags } from "./deps.ts";
+import { buildJobs, ConflictPolicy, processJobs, RemapPolicy } from "./job.ts";
+import { flags, path } from "./deps.ts";
 import { parseVersion, Version } from "./version.ts";
 import { resourcesNewerThan } from "./resources.ts";
 
@@ -17,11 +17,12 @@ export type Options = {
   max_version: Version | undefined;
   min_version: Version | undefined;
   jobs: number;
-  conflict_policy: ConflictPolicy;
   help: boolean;
   progress: boolean;
   dry_run: boolean;
-  remap: boolean;
+  conflict_policy: ConflictPolicy;
+  remap_policy: RemapPolicy;
+  decrypt: boolean;
   dump_mappings: boolean;
   dump_metadata: boolean;
   include_low_quality: boolean;
@@ -44,16 +45,6 @@ const help_text = `
     --jobs=[n]
         number of concurrent download jobs [default: 1]
 
-    --on-conflict=prefix_file|suffix_file|prefix_dir|skip
-        how conflicting names of files from different regions should be handled [default: suffix_file]
-          suffix_file adds [region] to the end of a file name
-          prefix_file adds [region] to the beginning of a file name
-          prefix_dir will move files to output/[region] directory
-          skip will skip the download of conflicting file
-
-        note: only files that have different size will have the policy applied
-        files with the same size are assumed to be equivalent and are always skipped
-
     --progress | --no-progress
         display the progress bar [default: true]
 
@@ -61,11 +52,26 @@ const help_text = `
         do not execute download jobs [default: false]
         implies --no-progress
 
-    --remap | --no-remap
-        translate remote file paths according to game's metadata [default: true]
-        when false, paths will be written using the same paths as they are served under
-        (minus the version prefix) disabling this can be useful as an escape hatch for
-        when the metadata format significantly changes, breaking the program
+    --on-conflict=prefix_file|suffix_file|prefix_dir|skip
+        how conflicting names of files from different regions should be handled [default: suffix_file]
+          'suffix_file' adds [region] to the end of a file name
+          'prefix_file' adds [region] to the beginning of a file name
+          'prefix_dir' will move files to output/[region] directory
+          'skip' will skip the download of conflicting file
+
+        note: only files that have different size will have the policy applied
+        files with the same size are assumed to be equivalent and are always skipped
+
+    --remap=none|version|metadata
+        how file paths should be transformed before writing local files [default: metadata]
+        changing this can be useful as an escape hatch for when the metadata format
+        significantly changes, breaking the program
+          'none' uses remote paths as is (implies --on-conflict=skip)
+          'version' strips version prefix
+          'metadata' translates remote file paths according to game's metadata
+
+    --decrypt | --no-decrypt
+        whether encrypted files should be decrypted before write [default: true]
 
     --dump-metadata | --no-dump-metadata
         write the decoded game metadata file as json [default: false]
@@ -93,24 +99,32 @@ export function parse(args: string[]) {
       jobs: 1,
       progress: true,
       "dry-run": false,
-      remap: true,
+      remap: "metadata",
+      decrypt: true,
       "dump-mappings": false,
       "dump-metadata": false,
       "include-low-quality": false,
       "include-old-cn-resources": false,
     },
-    string: ["max-version", "min-version", "output", "on-conflict", "jobs"],
+    string: [
+      "max-version",
+      "min-version",
+      "output",
+      "on-conflict",
+      "jobs",
+      "remap",
+    ],
     boolean: [
       "help",
       "progress",
       "dry-run",
+      "decrypt",
       "dump-mappings",
       "dump-metadata",
-      "remap",
       "include-low-quality",
       "include-old-cn-resources",
     ],
-    negatable: ["progress", "dump-mappings", "dump-metadata", "remap"],
+    negatable: ["progress", "decrypt", "dump-mappings", "dump-metadata"],
     unknown: (arg, _key, value) => {
       console.error(`Error: unknown flag: ${arg}=${value}`);
       Deno.exit(1);
@@ -144,13 +158,30 @@ export function parse(args: string[]) {
       conflict_policy = ConflictPolicy.FileSuffix;
   }
 
+  let remap_policy: RemapPolicy;
+  switch (raw_flags["remap"]) {
+    case "none":
+      remap_policy = RemapPolicy.None;
+      conflict_policy = ConflictPolicy.Skip;
+      break;
+    case "version":
+      remap_policy = RemapPolicy.Version;
+      break;
+    case "metadata":
+      remap_policy = RemapPolicy.Metadata;
+      break;
+    default:
+      remap_policy = RemapPolicy.Metadata;
+  }
+
   const options: Options = {
     output: raw_flags.output,
     help: raw_flags.help,
-    remap: raw_flags.remap,
     progress: raw_flags.progress,
-    conflict_policy: conflict_policy,
     dry_run: raw_flags["dry-run"],
+    conflict_policy: conflict_policy,
+    remap_policy: remap_policy,
+    decrypt: raw_flags.decrypt,
     dump_metadata: raw_flags["dump-metadata"],
     dump_mappings: raw_flags["dump-mappings"],
     jobs: jobs,
@@ -193,30 +224,27 @@ export async function run(options: Options): Promise<void> {
     resources = resourcesNewerThan(resources, options.min_version);
   }
 
-  let jobs: Jobs;
-  if (options.remap) {
-    const metadata = decodeMetadata(config_proto, mappings_bin);
-    if (options.dump_metadata) {
-      const metadata_file_name = "metadata.json";
-      console.log(`dumping metadata to ${metadata_file_name}`);
-      Deno.writeTextFileSync(
-        metadata_file_name,
-        JSON.stringify(metadata, null, 2),
-      );
-    }
-    const mappings = buildMappings(metadata);
-    if (options.dump_mappings) {
-      const mappings_file_name = "mappings.json";
-      console.log(`dumping mappings to ${mappings_file_name}`);
-      Deno.writeTextFileSync(
-        "mappings.json",
-        JSON.stringify(mappings, null, 2),
-      );
-    }
-    jobs = buildJobs(resources, options, mappings);
-  } else {
-    jobs = buildJobs(resources, options);
+  const metadata = decodeMetadata(config_proto, mappings_bin);
+  if (options.dump_metadata) {
+    const metadata_file_name = path.join(options.output, "metadata.json");
+    console.log(`dumping metadata to ${metadata_file_name}`);
+    Deno.writeTextFileSync(
+      metadata_file_name,
+      JSON.stringify(metadata, null, 2),
+    );
   }
+
+  const mappings = buildMappings(metadata);
+  if (options.dump_mappings) {
+    const mappings_file_name = path.join(options.output, "mappings.json");
+    console.log(`dumping mappings to ${mappings_file_name}`);
+    Deno.writeTextFileSync(
+      mappings_file_name,
+      JSON.stringify(mappings, null, 2),
+    );
+  }
+
+  const jobs = buildJobs(resources, options, mappings);
 
   await processJobs(jobs, options);
 }

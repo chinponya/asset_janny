@@ -74,16 +74,6 @@ options, much like this one:
     --jobs=[n]
         number of concurrent download jobs [default: 1]
 
-    --on-conflict=prefix_file|suffix_file|prefix_dir|skip
-        how conflicting names of files from different regions should be handled [default: suffix_file]
-          suffix_file adds [region] to the end of a file name
-          prefix_file adds [region] to the beginning of a file name
-          prefix_dir will move files to output/[region] directory
-          skip will skip the download of conflicting file
-
-        note: only files that have different size will have the policy applied
-        files with the same size are assumed to be equivalent and are always skipped
-
     --progress | --no-progress
         display the progress bar [default: true]
 
@@ -91,11 +81,26 @@ options, much like this one:
         do not execute download jobs [default: false]
         implies --no-progress
 
-    --remap | --no-remap
-        translate remote file paths according to game's metadata [default: true]
-        when false, paths will be written using the same paths as they are served under
-        (minus the version prefix) disabling this can be useful as an escape hatch for
-        when the metadata format significantly changes, breaking the program
+    --on-conflict=prefix_file|suffix_file|prefix_dir|skip
+        how conflicting names of files from different regions should be handled [default: suffix_file]
+          'suffix_file' adds [region] to the end of a file name
+          'prefix_file' adds [region] to the beginning of a file name
+          'prefix_dir' will move files to output/[region] directory
+          'skip' will skip the download of conflicting file
+
+        note: only files that have different size will have the policy applied
+        files with the same size are assumed to be equivalent and are always skipped
+
+    --remap=none|version|metadata
+        how file paths should be transformed before writing local files [default: metadata]
+        changing this can be useful as an escape hatch for when the metadata format
+        significantly changes, breaking the program
+          'none' uses remote paths as is (implies --on-conflict=skip)
+          'version' strips version prefix
+          'metadata' translates remote file paths according to game's metadata
+
+    --decrypt | --no-decrypt
+        whether encrypted files should be decrypted before write [default: true]
 
     --dump-metadata | --no-dump-metadata
         write the decoded game metadata file as json [default: false]
