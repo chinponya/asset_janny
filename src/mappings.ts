@@ -203,6 +203,7 @@ function buildSkinMappings(
       character_id_mappings[character_id].name,
     );
     let new_path: string;
+
     if (character_id == 0) {
       const suffix = file_path.split("_").pop() || path.basename(file_path);
       new_path = path.posix.join(base_path, character_name + suffix);
@@ -210,6 +211,12 @@ function buildSkinMappings(
       new_path = path.posix.join(base_path, character_name, "Default");
     } else {
       new_path = path.posix.join(base_path, character_name, skin_name);
+    }
+
+    if (entry["spine_type"] > 0) {
+      const spine_path = path.posix.join(file_path, "spine");
+      const mapped_spine_path = path.posix.join(new_path, "spine");
+      mappings[spine_path] = mapped_spine_path;
     }
 
     mappings[file_path] = new_path;
