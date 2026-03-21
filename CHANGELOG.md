@@ -7,8 +7,12 @@ breaking changes:
   * --remap=none is brand new and it will preserve resource version in the file path
 
 features:
-- --decrypt/--no-decrypt
+- new flags: --decrypt/--no-decrypt
     adds control for asset decryption which was previously implicit (enabled by default)
+- new flag: --min-version-file=[path]
+  like --min-version but reads the value from a file [default: none]
+  fetched version will be saved to this file, making it useful for automating incremental downloads
+  note: --min-version takes precedence
 
 fixes:
 - voice lines are once again mapped to the correct location

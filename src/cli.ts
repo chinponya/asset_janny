@@ -9,13 +9,19 @@ import { decodeMetadata } from "./metadata.ts";
 import { buildMappings } from "./mappings.ts";
 import { buildJobs, ConflictPolicy, processJobs, RemapPolicy } from "./job.ts";
 import { flags, path } from "./deps.ts";
-import { parseVersion, Version } from "./version.ts";
+import {
+  compareVersion,
+  parseVersion,
+  Version,
+  versionToString,
+} from "./version.ts";
 import { resourcesNewerThan } from "./resources.ts";
 
 export type Options = {
   output: string;
   max_version: Version | undefined;
   min_version: Version | undefined;
+  min_version_file: string | undefined;
   jobs: number;
   help: boolean;
   progress: boolean;
@@ -41,6 +47,11 @@ const help_text = `
     --min-version=[version]
         download assets more recent than this version (exclusive) [default: none]
         has to conform to the [major].[minor].[patch] format
+
+    --min-version-file=[path]
+        like --min-version but reads the value from a file [default: none]
+        fetched version will be saved to this file, making it useful for automating incremental downloads
+        note: --min-version takes precedence
 
     --jobs=[n]
         number of concurrent download jobs [default: 1]
@@ -75,11 +86,9 @@ const help_text = `
 
     --dump-metadata | --no-dump-metadata
         write the decoded game metadata file as json [default: false]
-        does nothing with --no-remap
 
     --dump-mappings | --no-dump-mappings
         write URLs and paths they would be saved to [default: false]
-        does nothing with --no-remap
 
     --include-low-quality | --no-include-low-quality
         downloads lower quality files when multiple quality variants exist [default: false]
@@ -109,6 +118,7 @@ export function parse(args: string[]) {
     string: [
       "max-version",
       "min-version",
+      "min-version-file",
       "output",
       "on-conflict",
       "jobs",
@@ -191,6 +201,7 @@ export function parse(args: string[]) {
     min_version: raw_flags["min-version"]
       ? parseVersion(raw_flags["min-version"])
       : undefined,
+    min_version_file: raw_flags["min-version-file"],
     include_low_quality: raw_flags["include-low-quality"],
     include_old_cn_resources: raw_flags["include-old-cn-resources"],
   };
@@ -204,11 +215,37 @@ export async function run(options: Options): Promise<void> {
     return;
   }
 
+  if (options.min_version_file) {
+    try {
+      const contents = await Deno.readTextFile(options.min_version_file);
+      const version_str = contents.split("\n")[0];
+      options.min_version = parseVersion(version_str);
+    } catch {
+      console.log(
+        `failed to read min-version from ${options.min_version_file}`,
+      );
+    }
+  }
+
   console.log(`running with options: ${JSON.stringify(options)}`);
 
   if (!options.max_version) {
     const game_version = await fetchVersion(defaultGameServer);
     options.max_version = game_version.version;
+  }
+
+  if (
+    options.min_version &&
+    compareVersion(options.min_version, options.max_version) >= 0
+  ) {
+    console.log(
+      `specified min-version (${
+        versionToString(options.min_version)
+      }) is already at the most recent downloadable version of the game (${
+        versionToString(options.max_version)
+      }). exiting`,
+    );
+    Deno.exit(1);
   }
 
   let resources = await fetchResversion(
@@ -228,7 +265,7 @@ export async function run(options: Options): Promise<void> {
   if (options.dump_metadata) {
     const metadata_file_name = path.join(options.output, "metadata.json");
     console.log(`dumping metadata to ${metadata_file_name}`);
-    Deno.writeTextFileSync(
+    await Deno.writeTextFile(
       metadata_file_name,
       JSON.stringify(metadata, null, 2),
     );
@@ -238,7 +275,7 @@ export async function run(options: Options): Promise<void> {
   if (options.dump_mappings) {
     const mappings_file_name = path.join(options.output, "mappings.json");
     console.log(`dumping mappings to ${mappings_file_name}`);
-    Deno.writeTextFileSync(
+    await Deno.writeTextFile(
       mappings_file_name,
       JSON.stringify(mappings, null, 2),
     );
@@ -247,4 +284,12 @@ export async function run(options: Options): Promise<void> {
   const jobs = buildJobs(resources, options, mappings);
 
   await processJobs(jobs, options);
+
+  if (options.min_version_file) {
+    console.log(`saving version to ${options.min_version_file}`);
+    await Deno.writeTextFile(
+      options.min_version_file,
+      versionToString(options.max_version),
+    );
+  }
 }

@@ -71,6 +71,11 @@ options, much like this one:
         download assets more recent than this version (exclusive) [default: none]
         has to conform to the [major].[minor].[patch] format
 
+    --min-version-file=[path]
+        like --min-version but reads the value from a file [default: none]
+        fetched version will be saved to this file, making it useful for automating incremental downloads
+        note: --min-version takes precedence
+
     --jobs=[n]
         number of concurrent download jobs [default: 1]
 
@@ -104,11 +109,9 @@ options, much like this one:
 
     --dump-metadata | --no-dump-metadata
         write the decoded game metadata file as json [default: false]
-        does nothing with --no-remap
 
     --dump-mappings | --no-dump-mappings
         write URLs and paths they would be saved to [default: false]
-        does nothing with --no-remap
 
     --include-low-quality | --no-include-low-quality
         downloads lower quality files when multiple quality variants exist [default: false]
