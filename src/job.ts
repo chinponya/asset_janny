@@ -169,12 +169,20 @@ export async function processJob(job: Job): Promise<JobResult> {
     path: native_path,
   };
 
-  const is_duplicate = await isDuplicate(resource_url, native_path);
-  if (is_duplicate) {
-    return { ...result, success: true };
+  const uses_skip_policy = job.conflict_policy == ConflictPolicy.Skip;
+
+  if (uses_skip_policy) {
+    const is_duplicate = await isDuplicate(resource_url, native_path);
+    if (is_duplicate) {
+      return { ...result, success: true };
+    }
   }
 
   let conflicts = await conflictsWithExisting(native_path);
+  if (conflicts && uses_skip_policy) {
+    return { ...result, success: true };
+  }
+
   if (conflicts) {
     job = resolveConflict(job);
     native_path = nativePath(job);

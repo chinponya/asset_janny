@@ -17,5 +17,6 @@ features:
 fixes:
 - voice lines are once again mapped to the correct location
 - spine directories are mapped to a subdirectory of skins
+- --on-conflict=skip will check for conflicting paths before checking remote file size for duplicates
 
 # For older changes see [releases](https://github.com/chinponya/asset_janny/releases)
