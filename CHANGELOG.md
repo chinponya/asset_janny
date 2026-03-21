@@ -1,3 +1,7 @@
+# 0.X.X (unreleased)
+fixes:
+- resolve absolute output paths correctly
+
 # 0.5.0
 breaking changes:
 - --dump-mappings and --dump-metadata will now save the file to --output directory instead of current working directory

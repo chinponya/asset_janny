@@ -83,7 +83,7 @@ export function buildJobs(
 
 export function nativePath(job: Job): string {
   return path.resolve(
-    ...job.output_directory.split(path.sep),
+    job.output_directory,
     ...job.output_path.split(path.posix.sep),
   );
 }
