@@ -1,4 +1,4 @@
-# 0.X.X (unreleased)
+# 0.5.1
 fixes:
 - resolve absolute output paths correctly
 
