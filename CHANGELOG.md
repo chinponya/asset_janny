@@ -1,4 +1,4 @@
-# 0.5.0 (unreleased)
+# 0.5.0
 breaking changes:
 - --dump-mappings and --dump-metadata will now save the file to --output directory instead of current working directory
 - --remap/--no-remap option changed to --remap=none|version|metadata
