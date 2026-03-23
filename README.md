@@ -128,8 +128,8 @@ Running `./asset_janny` with no extra arguments will start the download process
 into the current directory, with default options.
 
 In order to run this from source, you will need [deno](https://deno.land/). Use
-`deno task run` to run the program. `deno task dist` to build a linux executable
-and `deno task disk-windows` to build a windows executable.
+`deno task run` to run the program. `deno task dist` to build executables and a
+JS bundle.
 
 ### Known issues
 
